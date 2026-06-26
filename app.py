@@ -3,31 +3,10 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import streamlit as st
 import platform
-import os                          # 👈 추가됨
-import matplotlib.font_manager as fm # 👈 추가됨
+import koreanize-matplotlib
 
-# =================================================================
-# 📍 [위치]여기에 한글 폰트 깨짐 방지 설정을 넣습니다.
-# =================================================================
-system_name = platform.system()
 
-if system_name == 'Windows':
-    # 윈도우 환경
-    plt.rc('font', family='Malgun Gothic')
-elif system_name == 'Darwin':
-    # 맥 환경
-    plt.rc('font', family='AppleGothic')
-else:
-    # 리눅스 환경 (Streamlit Cloud 서버)
-    # packages.txt로 설치된 나눔고딕의 실제 경로를 지정합니다.
-    font_path = '/usr/share/fonts/truetype/nanum/NanumGothic.ttf'
-    
-    if os.path.exists(font_path):
-        font_name = fm.FontProperties(fname=font_path).get_name()
-        plt.rc('font', family=font_name)
-    else:
-        # 혹시 경로가 다를 경우를 대비한 폴백(Fallback) 설정
-        plt.rc('font', family='NanumGothic')
+
 
 # 마이너스 기호(-)가 깨지는 현상 방지
 plt.rc('axes', unicode_minus=False)
