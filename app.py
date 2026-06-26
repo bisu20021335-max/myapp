@@ -1,51 +1,78 @@
 import pandas as pd
 import matplotlib.pyplot as plt
+import seaborn as sns
 import streamlit as st
+import platform
 
-# 1. 스트림릿 페이지 설정 (제목 및 레이아웃)
-st.set_page_config(page_title="캘리포니아 주택 데이터 대시보드", layout="wide")
-st.title("📊 California Housing 데이터 분석 대시보드")
-st.markdown("기존 데이터 분석 코드를 스트림릿 대시보드로 전환한 화면입니다.")
+# 1. 스트림릿 페이지 레이아웃 설정
+st.set_page_config(page_title="교통사고 통계 대시보드", layout="wide")
+st.title("🚗 교통사고 사상자 연령층별/성별 통계 대시보드")
+st.markdown("한국도로교통공단 데이터를 활용하여 연령층 및 성별 사상자 현황을 시각화한 대시보드입니다.")
 
-# 2. 데이터 로드 (캐싱을 적용하여 속도 향상)
+# 2. 운영체제별 한글 깨짐 방지 설정 (스트림릿 클라우드 리눅스 대응)
+system_name = platform.system()
+if system_name == 'Windows':
+    plt.rc('font', family='Malgun Gothic')
+elif system_name == 'Darwin': # macOS
+    plt.rc('font', family='AppleGothic')
+else: # Linux (Streamlit Cloud 환경)
+    plt.rc('font', family='NanumGothic')
+plt.rc('axes', unicode_minus=False)
+
+# 3. 데이터 로드 (캐싱을 적용하여 새로고침 시 속도 향상)
 @st.cache_data
 def load_data():
-    # 깃허브 리포지토리에 데이터 파일을 함께 올릴 것이므로 파일명만 지정합니다.
-    return pd.read_csv('california_housing_train.csv')
+    # 깃허브에 데이터 파일을 함께 올릴 것이므로 파일명만 적어줍니다.
+    return pd.read_csv('한국도로교통공단_사상자 연령층별 성별 교통사고 통계_20241231.csv', encoding='cp949')
 
 try:
-    df = load_data()
+    car_combined = load_data()
 
-    # 3. 데이터프레임 출력
-    st.subheader("📋 데이터프레임 미리보기 (상위 5개 행)")
-    st.dataframe(df.head(), use_container_width=True)
+    # 총 사상자수 계산
+    car_combined['총 사상자수'] = car_combined['사망자수'] + car_combined['중상자수'] + car_combined['경상자수'] + car_combined['부상신고자수']
+
+    # 데이터프레임 확인 섹션
+    st.subheader("📋 데이터 미리보기 (상위 5개 행)")
+    st.dataframe(car_combined.head(), use_container_width=True)
 
     st.write("---")
 
-    # 4. 시각화 섹션 (화면을 2분할하여 좌우로 배치)
+    # 4. 시각화 섹션 (화면을 좌우 2분할 레이아웃으로 구성)
     col1, col2 = st.columns(2)
 
     with col1:
-        st.subheader('💵 소득 vs 주택 가치 관계')
-        # 스트림릿에서는 객체지향 방식으로 fig, ax를 생성하는 것이 안전합니다.
-        fig1, ax1 = plt.subplots(figsize=(8, 5))
-        ax1.scatter(df['median_income'], df['median_house_value'], alpha=0.5, color='#3498db')
-        ax1.set_title('Median Income vs Median House Value')
-        ax1.set_xlabel('Median Income')
-        ax1.set_ylabel('Median House Value')
-        ax1.grid(True)
-        # plt.show() 대신 st.pyplot() 사용
+        st.subheader('👥 연령층별 총 교통사고 사상자수')
+        casualties_by_age_combined = car_combined.groupby('사상자연령층')['총 사상자수'].sum().reset_index()
+
+        # 스트림릿에서는 fig 객체를 명시적으로 생성하여 대입하는 것이 안전합니다.
+        fig1, ax1 = plt.subplots(figsize=(10, 6))
+        sns.barplot(x='사상자연령층', y='총 사상자수', data=casualties_by_age_combined, palette='viridis', ax=ax1)
+        ax1.set_title('연령층별 총 교통사고 사상자수', fontsize=14)
+        ax1.set_xlabel('사상자 연령층', fontsize=11)
+        ax1.set_ylabel('총 사상자수', fontsize=11)
+        ax1.set_xticklabels(ax1.get_xticklabels(), rotation=45, ha='right', fontsize=9)
+        ax1.grid(axis='y', linestyle='--', alpha=0.7)
+        plt.tight_layout()
+        
+        # plt.show() 대신 st.pyplot()을 사용해 웹에 렌더링합니다.
         st.pyplot(fig1)
 
     with col2:
-        st.subheader('🏠 주택 연식 분포')
-        fig2, ax2 = plt.subplots(figsize=(8, 5))
-        ax2.hist(df['housing_median_age'], bins=30, edgecolor='black', color='#2ecc71')
-        ax2.set_title('Distribution of Housing Median Age')
-        ax2.set_xlabel('Housing Median Age')
-        ax2.set_ylabel('Frequency')
-        ax2.grid(True)
+        st.subheader('👫 연령층별 성별 사상자수 비교')
+        casualties_by_age_gender_combined = car_combined.groupby(['사상자연령층', '사상자성별'])['총 사상자수'].sum().reset_index()
+
+        fig2, ax2 = plt.subplots(figsize=(10, 6))
+        sns.barplot(x='사상자연령층', y='총 사상자수', hue='사상자성별', data=casualties_by_age_gender_combined, 
+                    palette={'남': 'skyblue', '여': 'salmon', '기타/불명': 'grey'}, ax=ax2)
+        ax2.set_title('연령층별 성별 총 교통사고 사상자수 비교', fontsize=14)
+        ax2.set_xlabel('사상자 연령층', fontsize=11)
+        ax2.set_ylabel('총 사상자수', fontsize=11)
+        ax2.set_xticklabels(ax2.get_xticklabels(), rotation=45, ha='right', fontsize=9)
+        ax2.legend(title='성별', fontsize=9, title_fontsize=10)
+        ax2.grid(axis='y', linestyle='--', alpha=0.7)
+        plt.tight_layout()
+        
         st.pyplot(fig2)
 
 except FileNotFoundError:
-    st.error("⚠️ 'california_housing_train.csv' 파일을 찾을 수 없습니다. 깃허브 리포지토리에 파일이 올바르게 업로드되었는지 확인해주세요.")
+    st.error("⚠️ CSV 파일을 찾을 수 없습니다. 깃허브 리포지토리에 파일이 올바르게 업로드되었는지 파일명을 확인해주세요.")
