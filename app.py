@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import streamlit as st
 import platform
-import koreanize-matplotlib
+import koreanize_matplotlib
 
 
 
