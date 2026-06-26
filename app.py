@@ -3,26 +3,45 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import streamlit as st
 import platform
+import os                          # 👈 추가됨
+import matplotlib.font_manager as fm # 👈 추가됨
+
+# =================================================================
+# 📍 [위치]여기에 한글 폰트 깨짐 방지 설정을 넣습니다.
+# =================================================================
+system_name = platform.system()
+
+if system_name == 'Windows':
+    # 윈도우 환경
+    plt.rc('font', family='Malgun Gothic')
+elif system_name == 'Darwin':
+    # 맥 환경
+    plt.rc('font', family='AppleGothic')
+else:
+    # 리눅스 환경 (Streamlit Cloud 서버)
+    # packages.txt로 설치된 나눔고딕의 실제 경로를 지정합니다.
+    font_path = '/usr/share/fonts/truetype/nanum/NanumGothic.ttf'
+    
+    if os.path.exists(font_path):
+        font_name = fm.FontProperties(fname=font_path).get_name()
+        plt.rc('font', family=font_name)
+    else:
+        # 혹시 경로가 다를 경우를 대비한 폴백(Fallback) 설정
+        plt.rc('font', family='NanumGothic')
+
+# 마이너스 기호(-)가 깨지는 현상 방지
+plt.rc('axes', unicode_minus=False)
+# =================================================================
+
 
 # 1. 스트림릿 페이지 레이아웃 설정
 st.set_page_config(page_title="교통사고 통계 대시보드", layout="wide")
 st.title("🚗 교통사고 사상자 연령층별/성별 통계 대시보드")
 st.markdown("한국도로교통공단 데이터를 활용하여 연령층 및 성별 사상자 현황을 시각화한 대시보드입니다.")
 
-# 2. 운영체제별 한글 깨짐 방지 설정 (스트림릿 클라우드 리눅스 대응)
-system_name = platform.system()
-if system_name == 'Windows':
-    plt.rc('font', family='Malgun Gothic')
-elif system_name == 'Darwin': # macOS
-    plt.rc('font', family='AppleGothic')
-else: # Linux (Streamlit Cloud 환경)
-    plt.rc('font', family='NanumGothic')
-plt.rc('axes', unicode_minus=False)
-
-# 3. 데이터 로드 (캐싱을 적용하여 새로고침 시 속도 향상)
+# 2. 데이터 로드 (캐싱을 적용하여 새로고침 시 속도 향상)
 @st.cache_data
 def load_data():
-    # 깃허브에 데이터 파일을 함께 올릴 것이므로 파일명만 적어줍니다.
     return pd.read_csv('한국도로교통공단_사상자 연령층별 성별 교통사고 통계_20241231.csv', encoding='cp949')
 
 try:
@@ -37,14 +56,13 @@ try:
 
     st.write("---")
 
-    # 4. 시각화 섹션 (화면을 좌우 2분할 레이아웃으로 구성)
+    # 3. 시각화 섹션
     col1, col2 = st.columns(2)
 
     with col1:
         st.subheader('👥 연령층별 총 교통사고 사상자수')
         casualties_by_age_combined = car_combined.groupby('사상자연령층')['총 사상자수'].sum().reset_index()
 
-        # 스트림릿에서는 fig 객체를 명시적으로 생성하여 대입하는 것이 안전합니다.
         fig1, ax1 = plt.subplots(figsize=(10, 6))
         sns.barplot(x='사상자연령층', y='총 사상자수', data=casualties_by_age_combined, palette='viridis', ax=ax1)
         ax1.set_title('연령층별 총 교통사고 사상자수', fontsize=14)
@@ -53,8 +71,6 @@ try:
         ax1.set_xticklabels(ax1.get_xticklabels(), rotation=45, ha='right', fontsize=9)
         ax1.grid(axis='y', linestyle='--', alpha=0.7)
         plt.tight_layout()
-        
-        # plt.show() 대신 st.pyplot()을 사용해 웹에 렌더링합니다.
         st.pyplot(fig1)
 
     with col2:
@@ -71,7 +87,6 @@ try:
         ax2.legend(title='성별', fontsize=9, title_fontsize=10)
         ax2.grid(axis='y', linestyle='--', alpha=0.7)
         plt.tight_layout()
-        
         st.pyplot(fig2)
 
 except FileNotFoundError:
